@@ -699,7 +699,6 @@ function AnimationTrack:Play(fadeTime, weight, speed)
 				transforms[jointName] = lastPose.cframe:Lerp(nextPose.cframe, getLerpAlpha(dt, nextPose.easingStyle, nextPose.easingDirection))
 			end
 		end
-		debug.profileend()
 		return transforms, netWeight
 	end
 
@@ -714,6 +713,7 @@ function AnimationTrack:Play(fadeTime, weight, speed)
 	self.IsPlaying = true
 	self._step = step
 	self._setWeight = setWeight
+	self._parent.AnimationPlayed:Fire(self)
 end
 
 function AnimationTrack:_fadeOut(fadeTime)
@@ -766,7 +766,6 @@ function AnimationTrack:Destroy()
 	self.Stopped:Destroy()
 	self.Ended:Destroy()
 	self.KeyframeReached:Destroy()
-	self.Stopped:Destroy()
 	for _, signal in self._markerReachedSignals do
 		signal:Destroy()
 	end
@@ -880,8 +879,6 @@ local function assertIsObject(self)
 	assert(self ~= Animator, "cannot call object method on static class")
 end
 
-Animator.AnimationPlayed = Signal("AnimationPlayed")
-
 function Animator:LoadAnimation(keyframeSequence)
 	assertIsObject(self)
 	assertClass("LoadAnimation", keyframeSequence, {"AnimationTrack", "KeyframeSequence"}, 2)
@@ -990,8 +987,10 @@ function Animator.new(humanoid): Animator
 	local joints = {}
 	local jointTrackers = {}
 	local steppedEvent = Signal("Stepped")
+	local animationPlayed = Signal("AnimationPlayed")
 
 	self.Stepped = steppedEvent
+	self.AnimationPlayed = animationPlayed
 
 	self._humanoid = humanoid
 	self._destroyed = false
@@ -1005,7 +1004,6 @@ function Animator.new(humanoid): Animator
 
 	local last = clock()
 	self._stepped = RunService.Stepped:Connect(function()
-		debug.profilebegin("animatorProcess")
 		local now = clock()
 		local delta = now - last -- stepped delta is throttled
 		last = now
